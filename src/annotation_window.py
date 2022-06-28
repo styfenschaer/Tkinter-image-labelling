@@ -271,7 +271,7 @@ class AnnotationCanvas(tk.Canvas):
         self.delete(self._win)
 
     @if_true("_rec_ids")
-    def _inc_dec_rec_idx(self, e, val):
+    def _switch_rectangle(self, e, val):
         self._rec_idx += val
         self._rec_idx %= len(self._rec_ids)
 
@@ -295,8 +295,8 @@ class AnnotationCanvas(tk.Canvas):
         "m": switch_bool("_anno_mode")(noop),
         "Prior": partial(_update_step, sign=1),
         "Next": partial(_update_step, sign=-1),
-        "x": partial(_inc_dec_rec_idx, val=1),
-        "y": partial(_inc_dec_rec_idx, val=-1),
+        "x": partial(_switch_rectangle, val=1),
+        "y": partial(_switch_rectangle, val=-1),
     }
 
     def _on_keypress(self, e):
@@ -330,7 +330,7 @@ if __name__ == "__main__":
 
     root = tk.Tk()
     root.geometry("1920x1080")
-    canv = AnnotationCanvas(root, width=1120, height=880,
+    canv = AnnotationCanvas(root, width=1820, height=980,
                             width_zoom=400, height_zoom=400)
     canv.pack()
 
