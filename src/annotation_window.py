@@ -4,6 +4,11 @@ from functools import partial
 import pyautogui
 from PIL import Image, ImageOps, ImageTk
 
+GREEN = "#3cba54"
+BLUE = "#4885ed"
+YELLOW = "#f4c20d"
+RED = "#db3236"
+
 
 def canvas_size(canv):
     return int(canv["width"]), int(canv["height"])
@@ -21,8 +26,12 @@ class Rectangle:
     _coords = ("x1", "y1", "x2", "y2")
 
     _config = dict(
-        outline="#e95620",
-        width=1,
+        outline=YELLOW,
+        width=2,
+    )
+    _config_spotlight = dict(
+        outline=RED,
+        width=4,
     )
 
     def __init__(self, canv, **kwargs):
@@ -44,93 +53,86 @@ class Rectangle:
     def delete(self):
         self.canv.delete(self._id)
 
-    def draw(self, *args, **kwargs):
+    def draw(self, *args, spotlight=False):
         self.canv.delete(self._id)
-        self._id = self.canv.create_rectangle(*self.get(), **self._config)
-
-    def duplicate(self, canv, x, y, scale):
-        x1, y1, x2, y2 = self.get()
-        w2, h2 = canvas_size(canv)
-        rw, rh = (x2-x1), (y2-y1)
-
-        xz1 = x1 - (x-w2/2)
-        yz1 = y1 - (y-h2/2)
-        xz2 = xz1 + rw
-        yz2 = yz1 + rh
-
-        xz1 -= (w2/2 - xz1)*(scale-1)
-        yz1 -= (h2/2 - yz1)*(scale-1)
-        xz2 -= (w2/2 - xz2)*(scale-1)
-        yz2 -= (h2/2 - yz2)*(scale-1)
-
-        canv.create_rectangle(xz1, yz1, xz2, yz2, **self._config)
-
-    def spotlight(self):
-        self.canv.delete(self._id)
-        config = self._config.copy()
-        config.update(dict(width=self._config["width"] + 2))
+        config = self._config_spotlight if spotlight else self._config
         self._id = self.canv.create_rectangle(*self.get(), **config)
+
+    def duplicate(self, canv, x, y, scale, spotlight=False):
+        x1, y1, x2, y2 = self.get()
+        width, height = canvas_size(canv)
+        width_rec, height_rec = (x2-x1), (y2-y1)
+
+        x1_zoom = x1 - (x-width/2)
+        y1_zoom = y1 - (y-height/2)
+
+        x1_zoom -= (width/2 - x1_zoom)*(scale-1)
+        y1_zoom -= (height/2 - y1_zoom)*(scale-1)
+        x2_zoom = x1_zoom + width_rec*scale
+        y2_zoom = y1_zoom + height_rec*scale
+
+        config = self._config_spotlight if spotlight else self._config
+        canv.create_rectangle(x1_zoom, y1_zoom, x2_zoom, y2_zoom, **config)
 
 
 class Reticle:
-
     _config = dict(
-        fill="#e05194",
-        width=1,
+        fill=BLUE,
+        width=2,
     )
 
     def __init__(self, canv):
         self.canv = canv
 
         self._idh = None
-        self.cent_h = tk.DoubleVar(canv, 0)
-        self.cent_h.trace("w", self.draw)
+        self.cent_hor = tk.DoubleVar(canv, 0)
+        self.cent_hor.trace("w", self.draw)
 
         self._idv = None
-        self.cent_v = tk.DoubleVar(canv, 0)
-        self.cent_v.trace("w", self.draw)
+        self.cent_vert = tk.DoubleVar(canv, 0)
+        self.cent_vert.trace("w", self.draw)
 
     def get(self):
-        w, h = canvas_size(self.canv)
-        cent_h, cent_v = self.cent_h.get(), self.cent_v.get()
-        line_h = (cent_h - w, cent_v, cent_h + w, cent_v)
-        line_v = (cent_h, cent_v - h, cent_h, cent_h + h)
+        width, height = canvas_size(self.canv)
+        cent_h, cent_v = self.cent_hor.get(), self.cent_vert.get()
+        line_h = (cent_h - width, cent_v, cent_h + width, cent_v)
+        line_v = (cent_h, cent_v - height, cent_h, cent_h + height)
         return line_h, line_v
 
     def set(self, x, y):
-        self.cent_h.set(x)
-        self.cent_v.set(y)
+        self.cent_hor.set(x)
+        self.cent_vert.set(y)
 
     def delete(self):
         self.canv.delete(self._idv, self._idh)
 
-    def draw(self, *args, **kwargs):
-        line_h, line_v = self.get()
+    def draw(self, *args):
+        line_hor, line_vert = self.get()
 
         self.canv.delete(self._idh)
-        self._idh = self.canv.create_line(line_h, **self._config)
+        self._idh = self.canv.create_line(line_hor, **self._config)
         self.canv.delete(self._idv)
-        self._idv = self.canv.create_line(line_v, **self._config)
+        self._idv = self.canv.create_line(line_vert, **self._config)
 
     def duplicate(self, canv):
-        w2, h2 = canvas_size(canv)
-        line_h = (w2/2 - w2, h2/2, w2/2 + w2, h2/2)
-        line_v = (w2/2, h2/2 - h2, w2/2, h2/2 + h2)
+        width, height = canvas_size(canv)
+        line_hor = (width/2 - width, height/2, width/2 + width, height/2)
+        line_vert = (width/2, height/2 - height, width/2, height/2 + height)
 
         self.canv.delete(self._idh)
-        self._idh = canv.create_line(line_h, **self._config)
+        self._idh = canv.create_line(line_hor, **self._config)
         self.canv.delete(self._idv)
-        self._idv = canv.create_line(line_v, **self._config)
+        self._idv = canv.create_line(line_vert, **self._config)
 
 
 class ZoomCanvas(tk.Canvas):
-
-    _delta_zoom = 0.1
-    _min_zoom = 0.1
+    _delta_zoom = 0.2
+    _min_zoom = 0.2
     _max_zoom = 5.0
     _init_zoom = 2.0
 
     _config = dict(
+        highlightbackground=GREEN,
         highlightthickness=0,
     )
 
@@ -145,14 +147,14 @@ class ZoomCanvas(tk.Canvas):
         self.zoom = sorted((self._min_zoom, zoom, self._max_zoom))[1]
 
     def insert_image(self, image, x, y):
-        w, h = canvas_size(self)
+        width, height = canvas_size(self)
         image = image.crop((
-            x - w/2/self.zoom,
-            y - h/2/self.zoom,
-            x + w/2/self.zoom,
-            y + h/2/self.zoom,
+            x - width/2/self.zoom,
+            y - height/2/self.zoom,
+            x + width/2/self.zoom,
+            y + height/2/self.zoom,
         ))
-        image = image.resize((w, h))
+        image = image.resize((width, height))
         self.image = ImageTk.PhotoImage(image)
         self.create_image((0, 0), anchor=tk.NW, image=self.image)
 
@@ -181,7 +183,6 @@ def switch_bool(mode):
 
 
 class AnnotationCanvas(tk.Canvas):
-
     _step_size = 2
     _delta_step_size = 1
     _min_step_size = 1
@@ -204,7 +205,7 @@ class AnnotationCanvas(tk.Canvas):
         self._rec_idx = -1
         self._anno_mode = False
 
-        self._reticle_idx = Reticle(self)
+        self._reticle_id = Reticle(self)
         self._zoom_window = ZoomCanvas(self, width_zoom, height_zoom)
 
     @if_true("_anno_mode")
@@ -239,7 +240,7 @@ class AnnotationCanvas(tk.Canvas):
         self._rec_ids[self._rec_idx].set(x2=e.x, y2=e.y)
 
     def _on_hover_cross(self, e):
-        self._reticle_idx.set(x=e.x, y=e.y)
+        self._reticle_id.set(x=e.x, y=e.y)
 
     def _on_hover(self, e):
         self._on_hover_rectangle(e)
@@ -250,6 +251,7 @@ class AnnotationCanvas(tk.Canvas):
     def _on_double_click(self, e):
         rec_id = Rectangle(self, x1=e.x, y1=e.y, x2=e.x, y2=e.y)
         self._rec_ids.append(rec_id)
+        self._rec_ids[self._rec_idx].draw()
         self._rec_idx = -1
 
     def _update_step(self, e, sign):
@@ -261,11 +263,13 @@ class AnnotationCanvas(tk.Canvas):
         self._win = self.create_window(e.x, e.y, window=self._zoom_window)
         self._zoom_window.insert_image(self._image, e.x, e.y)
 
-        for r in self._rec_ids:
-            r.duplicate(self._zoom_window, e.x, e.y, self._zoom_window.zoom)
+        for i, r in enumerate(self._rec_ids):
+            r.duplicate(self._zoom_window, e.x, e.y,
+                        self._zoom_window.zoom,
+                        spotlight=(i == self._rec_idx))
 
-        self._reticle_idx.duplicate(self._zoom_window)
-        self._reticle_idx.set(x=e.x, y=e.y)
+        self._reticle_id.duplicate(self._zoom_window)
+        self._reticle_id.set(x=e.x, y=e.y)
 
     def _zoom_off(self, e):
         self.delete(self._win)
@@ -275,9 +279,10 @@ class AnnotationCanvas(tk.Canvas):
         self._rec_idx += val
         self._rec_idx %= len(self._rec_ids)
 
-        for r in self._rec_ids:
-            r.draw()
-        self._rec_ids[self._rec_idx].spotlight()
+        for i, r in enumerate(self._rec_ids):
+            r.draw(self._zoom_window, e.x, e.y,
+                   self._zoom_window.zoom,
+                   spotlight=(i == self._rec_idx))
 
     _on_keypress_dct = {
         "Down": partial(_move_vert, x=0, y=1),
